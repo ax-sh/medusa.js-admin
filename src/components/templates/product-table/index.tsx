@@ -4,7 +4,7 @@ import { useAdminProducts } from "medusa-react"
 import qs from "qs"
 import React, { useEffect, useState } from "react"
 import { usePagination, useTable } from "react-table"
-import { FeatureFlagContext } from "../../../context/feature-flag"
+import { useFeatureFlag } from "../../../context/feature-flag"
 import ProductsFilter from "../../../domain/products/filter-dropdown"
 import Spinner from "../../atoms/spinner"
 import Table, { TablePagination } from "../../molecules/table"
@@ -19,15 +19,16 @@ const DEFAULT_PAGE_SIZE_TILE_VIEW = 18
 type ProductTableProps = {}
 
 const defaultQueryProps = {
-  fields: "id,title,type,thumbnail,status",
-  expand: "variants,options,variants.prices,variants.options,collection,tags",
+  fields: "id,title,thumbnail,status,handle",
+  expand:
+    "variants,options,variants.prices,variants.options,collection,tags,type",
   is_giftcard: false,
 }
 
 const ProductTable: React.FC<ProductTableProps> = () => {
   const location = useLocation()
 
-  const { isFeatureEnabled } = React.useContext(FeatureFlagContext)
+  const { isFeatureEnabled } = useFeatureFlag()
 
   let hiddenColumns = ["sales_channel"]
   if (isFeatureEnabled("sales_channels")) {
@@ -188,6 +189,7 @@ const ProductTable: React.FC<ProductTableProps> = () => {
           }
           enableSearch
           handleSearch={setQuery}
+          isLoading={isLoading || isRefetching || !products}
           {...getTableProps()}
         >
           {showList ? (
@@ -206,16 +208,13 @@ const ProductTable: React.FC<ProductTableProps> = () => {
                   </Table.HeadRow>
                 ))}
               </Table.Head>
-              <LoadingContainer
-                isLoading={isLoading || isRefetching || !products}
-              >
-                <Table.Body {...getTableBodyProps()}>
-                  {rows.map((row) => {
-                    prepareRow(row)
-                    return <ProductRow row={row} />
-                  })}
-                </Table.Body>
-              </LoadingContainer>
+
+              <Table.Body {...getTableBodyProps()}>
+                {rows.map((row) => {
+                  prepareRow(row)
+                  return <ProductRow row={row} {...row.getRowProps()} />
+                })}
+              </Table.Body>
             </>
           ) : (
             <LoadingContainer
@@ -256,7 +255,7 @@ const LoadingContainer = ({ isLoading, children }) => {
   )
 }
 
-const ProductRow = ({ row }) => {
+const ProductRow = ({ row, ...rest }) => {
   const product = row.original
   const { getActions } = useProductActions(product)
 
@@ -265,17 +264,15 @@ const ProductRow = ({ row }) => {
       color={"inherit"}
       linkTo={`/a/products/${product.id}`}
       actions={getActions()}
-      {...row.getRowProps()}
+      {...rest}
     >
-      {" "}
       {row.cells.map((cell, index) => {
         return (
           <Table.Cell {...cell.getCellProps()}>
-            {" "}
-            {cell.render("Cell", { index })}{" "}
+            {cell.render("Cell", { index })}
           </Table.Cell>
         )
-      })}{" "}
+      })}
     </Table.Row>
   )
 }
